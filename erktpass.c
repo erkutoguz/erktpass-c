@@ -9,9 +9,12 @@ int main(int argc, char *argv[]) {
 
   char l[32];
   char r[32];
+  char li_1[32];
+  char ri_1[32];
 
   char b_key[64];
   char key_56[56];
+  char round_key[48];
 
   char c[28];
   char d[28];
@@ -20,23 +23,131 @@ int main(int argc, char *argv[]) {
   convert_str_2_binary(key, b_key);
 
   initial_perm(b_text, ip_text);
-  split_text(ip_text, l, r);
+  split_text(ip_text, li_1, ri_1);
   initial_key(b_key, key_56);
 
   int rd;
   rd = 1;
   for (; rd < 17; ++rd) {
+    split_key(key_56, c, d);
+    if (rd == 1 || rd == 2 || rd == 9 || rd == 16) {
+      l_shift_key(c, 1);
+      l_shift_key(d, 1);
+    } else {
+      l_shift_key(c, 2);
+      l_shift_key(d, 2);
+    }
+    combine_key(key_56, c, d);
+    generate_subkey(key_56, round_key);
+
+    _round(li_1, ri_1, l, r, round_key, rd);
   }
+
+  char enc[64];
+
+  combine_encrpyted(b_text, l, r);
+
+  for (int i = 0; i < 64; ++i) {
+    printf("%x", b_text[i]);
+    if ((i + 1) % 8 == 0)
+      printf("\n");
+  }
+
   return 0;
 }
 
-void round(char li_1[32], char ri_1[32], char li[32], char ri[32],
-           char round_key[32]) {
+void _round(char li_1[32], char ri_1[32], char li[32], char ri[32],
+            char round_key[48], int rd) {
+
   char b_48[48];
+  char s_32[32];
+  char perm_s_32[32];
   memcpy(li, ri_1, 32);
 
   expand32_48(ri_1, b_48);
   _xor(b_48, b_48, round_key, 48);
+
+  substitution(b_48, s_32, rd);
+
+  perm(perm_s_32, s_32);
+  _xor(ri, li_1, perm_s_32, 32);
+  memcpy(li_1, li, 32);
+  memcpy(ri_1, ri, 32);
+}
+
+void combine_encrpyted(char res[64], char l[32], char r[32]) {
+  int i;
+  for (i = 0; i < 32; ++i) {
+    res[i] = l[i];
+    res[i + 32] = r[i + 32];
+  }
+}
+
+void convert_binary_2_string(char *bin, char *str) {
+  int i;
+
+  for (i = 0; i < 64; ++i) {
+    printf(" %x ", bin[i]);
+    if ((i + 1) % 8 == 0) {
+      printf("\n");
+    }
+  }
+}
+
+void substitution(char s_48[48], char s_32[32], int rd) {
+  char s_box[4][16];
+  int i, r, c, v;
+  char rb[2];
+  char cb[4];
+  char b[4];
+
+  i = rd - 1;
+
+  memcpy(s_box[0], S_BOXES[i][0], 16);
+  memcpy(s_box[1], S_BOXES[i][1], 16);
+  memcpy(s_box[2], S_BOXES[i][2], 16);
+  memcpy(s_box[3], S_BOXES[i][3], 16);
+
+  for (int m = 0; m < 8; ++m) {
+    rb[0] = s_48[m * 6];
+    rb[1] = s_48[m * 6 + 5];
+    r = rb[0] * 2 + rb[1] * 1;
+
+    cb[0] = s_48[m * 6 + 1];
+    cb[1] = s_48[m * 6 + 2];
+    cb[2] = s_48[m * 6 + 3];
+    cb[3] = s_48[m * 6 + 4];
+    c = cb[0] * 8 + cb[1] * 4 + cb[2] * 2 + cb[3] * 1;
+
+    v = s_box[r][c];
+    int4_to_binary(b, v);
+
+    for (int n = 0; n < 4; ++n) {
+      s_32[m * 4] = b[0];
+      s_32[m * 4 + 1] = b[1];
+      s_32[m * 4 + 2] = b[2];
+      s_32[m * 4 + 3] = b[3];
+    }
+  }
+}
+
+void int4_to_binary(char b[4], int v) {
+  int n, s;
+  n = v;
+  s = 3;
+  while (n > 0) {
+    b[s--] = n % 2;
+    n /= 2;
+  }
+}
+
+void perm(char res[32], char s_32[32]) {
+  int i, p;
+
+  for (i = 0; i < 32; ++i) {
+    p = P_TABLE[i] - 1;
+    res[i] = s_32[p];
+  }
 }
 
 void initial_perm(char b_message[64], char ip_message[64]) {
@@ -46,10 +157,6 @@ void initial_perm(char b_message[64], char ip_message[64]) {
     ip_message[i] = b_message[p];
   }
 }
-
-// 00010011 00110100 11011010 01010110 10001010 00101010 00011010 10100101
-// 0001001  0011010  1101101  0101011  1000101  0010101  0001101  1010010
-// 00010010 01101011 01101010 10111000 10100101 01000110 11010010
 
 void convert_str_2_binary(char *str, char *bin) {
   int i, j, len;
@@ -74,11 +181,31 @@ void split_text(char ip_text[64], char l0[32], char r0[32]) {
   }
 }
 
+void split_key(char round_key[56], char c[28], char d[28]) {
+  int i;
+  i = 0;
+  while (i < 28) {
+    c[i] = round_key[i];
+    d[i + 28] = round_key[i + 28];
+    ++i;
+  }
+}
+
+void combine_key(char round_key[56], char c[28], char d[28]) {
+  int i;
+  i = 0;
+  while (i < 28) {
+    round_key[i] = c[i];
+    round_key[i + 28] = d[i + 28];
+    ++i;
+  }
+}
+
 void initial_key(char key[64], char out[56]) {
   int i, p;
 
   for (i = 0; i < 56; ++i) {
-    p = PC1_TABLE[i];
+    p = PC1_TABLE[i] - 1;
     out[i] = key[p];
   }
 }
@@ -87,7 +214,7 @@ void expand32_48(char half[32], char to[48]) {
   int i, p;
 
   for (i = 0; i < 48; ++i) {
-    p = E_TABLE[i];
+    p = E_TABLE[i] - 1;
     to[i] = half[p];
   }
 }
@@ -95,7 +222,7 @@ void expand32_48(char half[32], char to[48]) {
 void generate_subkey(char key[56], char subkey[48]) {
   int i, p;
   for (i = 0; i < 48; ++i) {
-    p = PC2_TABLE[i];
+    p = PC2_TABLE[i] - 1;
     subkey[i] = key[p];
   }
 }
