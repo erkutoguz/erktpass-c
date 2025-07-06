@@ -194,7 +194,7 @@ void _round(char li_1[32], char ri_1[32], char li[32], char ri[32], char round_k
 
 void combine_encrpyted(char res[64], char l[32], char r[32]);
 
-void convert_binary_2_string(char *bin, char *str);
+void convert_binary_2_string(char bin[64], char str[8]);
 
 void encrypt(char target[64], char *plain_text, char *key);
 void decrypt(char *target, char *encrypted_text);

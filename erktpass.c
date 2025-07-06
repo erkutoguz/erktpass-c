@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[]) {
   char *text = "midnight";
-  char *key = "IEOFIT#1";
+  char *key = "IEOFIT21";
 
   char b_text[64];
   char ip_text[64];
@@ -43,16 +43,14 @@ int main(int argc, char *argv[]) {
     _round(li_1, ri_1, l, r, round_key, rd);
   }
 
-  char enc[64];
+  char enc[8];
 
   combine_encrpyted(b_text, l, r);
 
-  for (int i = 0; i < 64; ++i) {
-    printf("%x", b_text[i]);
-    if ((i + 1) % 8 == 0)
-      printf("\n");
-  }
+  convert_binary_2_string(b_text, enc);
 
+  printf("%X %X %X %X %X %X %X %X", enc[0] & 0xff, enc[1] & 0xff, enc[2] & 0xff,
+         enc[3] & 0xff, enc[4] & 0xff, enc[5] & 0xff, enc[6] & 0xff, enc[7]);
   return 0;
 }
 
@@ -83,14 +81,23 @@ void combine_encrpyted(char res[64], char l[32], char r[32]) {
   }
 }
 
-void convert_binary_2_string(char *bin, char *str) {
+void convert_binary_2_string(char bin[64], char str[8]) {
   int i;
+  unsigned char c;
 
-  for (i = 0; i < 64; ++i) {
-    printf(" %x ", bin[i]);
-    if ((i + 1) % 8 == 0) {
-      printf("\n");
-    }
+  c = 0;
+  for (i = 0; i < 8; ++i) {
+    c += bin[i * 8] * 128;
+    c += bin[i * 8 + 1] * 64;
+    c += bin[i * 8 + 2] * 32;
+    c += bin[i * 8 + 3] * 16;
+    c += bin[i * 8 + 4] * 8;
+    c += bin[i * 8 + 5] * 4;
+    c += bin[i * 8 + 6] * 2;
+    c += bin[i * 8 + 7] * 1;
+
+    str[i] = c;
+    c = 0;
   }
 }
 
